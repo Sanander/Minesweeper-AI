@@ -31,11 +31,11 @@ class Square:
     self.mine = mine
     return
 
-  def getProximity(self):
-    return self.proximity
+  def getClue(self):
+    return self.clue
 
-  def setProximity(self, proximity):
-    self.proximity = proximity
+  def setClue(self, clue):
+    self.clue = clue
     return
 
   def getVisible(self):
@@ -49,10 +49,10 @@ class Square:
     if self.visible == None:
       return "-"
     if not self.getVisible():
-      return str(self.proximity)
+      return str(self.clue)
     if self.getMine():
       return "M"
-    return str(self.proximity)
+    return str(self.clue)
 
 #Creates board
 def generateBoard(d, n):
@@ -68,7 +68,7 @@ def generateBoard(d, n):
   
   for i in range(d):
      for j in range(d):
-       board[i][j].setProximity(checkSurrounding(board, i, j))
+       board[i][j].setClue(checkSurrounding(board, i, j))
 
   return board
 
@@ -85,9 +85,9 @@ def checkSurrounding(board, i, j):
             neighbors=neighbors+1
             if (board[x][y].getMine()):
                 clue += 1
-                if(board[x][y].getVisible==True):
-                    visibleMineCount=visibleMineCount+1
-            elif (board[x][y].getVisible==True):
+                if(board[x][y].getVisible()==True):
+                    visibleMineCount+=1
+            elif (board[x][y].getVisible()==True):
                     visibleSafeSpace=visibleSafeSpace+1
   return (clue,neighbors,visibleMineCount,visibleSafeSpace)
 
@@ -97,8 +97,9 @@ def printBoard(board):
      for y in range(len(board)):
        print(str(board[x][y]), end=" ")
      print("\n")
+  print("\n")
 
-#Print hidden neigbors
+#Get list of hidden neigbors
 def getNewNeighbors(board, i, j):
   ret = []
   
@@ -117,34 +118,76 @@ def updateBoardKnowledge(board,n):
     dim=len(board)
     for row in range(0,dim):
         for col in range(0,dim):
-            clue,neighbors,visibleMineCount,visibleSafeSpace=checkSurrounding(board,row, col)
+            clue,neighbors,visibleMineCount,visibleSafeSpace=checkSurrounding(board,row,col)
             board[row][col].clue=clue
             board[row][col].minesAround=visibleMineCount
             board[row][col].safeAround=visibleSafeSpace
-            board[row][col].hiddenAround=neigbors-visibleMineCount-visibleSafeSpace
+            board[row][col].hiddenAround=neighbors-visibleMineCount-visibleSafeSpace
 
 def basicAgent(d, n):
   board = generateBoard(d, n)
-  bombCount = 0
+  bombCount = 0 
+  visited=[]
+  dim=len(board)
+  boardChanged=False
+
   while bombCount < n:
+    boardChanged=False
     printBoard(board)
-    i = random.randint(0, len(board)-1)
-    j = random.randint(0, len(board)-1)
-    print(str(i) + " " + str(j))
-    board[i][j].setVisible(True)
-    if board[i][j].getMine():
+    updateBoardKnowledge(board,n)
+    #Search revealed squares to see if neighbors can be solved
+    for (row,col) in visited:
+        clue=board[row][col].clue
+        revealedMines=board[row][col].minesAround
+        hiddenNeighbors=board[row][col].hiddenAround
+        safeNeighbors=board[row][col].safeAround
+        totalNeighbors=revealedMines+safeNeighbors+hiddenNeighbors
+        
+        print("ROW-COL: "+str(row)+", "+str(col)+", "+str(revealedMines))
+
+        #Case all neighbors are mines
+        if(clue-revealedMines==hiddenNeighbors):
+            hiddenList=getNewNeighbors(board,row,col)
+            for (i,j) in hiddenList:
+                if((i,j) not in visited):
+                    print("Flag mine on: "+str(i)+", "+str(j))
+                    bombCount+=1
+                    board[i][j].setVisible(True)
+                    visited.append((i,j))
+                    boardChanged=True
+            
+        #Case all neighbors are safe
+        elif (totalNeighbors-clue-safeNeighbors==hiddenNeighbors):
+            hiddenList=getNewNeighbors(board,row,col)
+            for (i,j) in hiddenList:
+                if((i,j) not in visited):
+                    print("Reveal: "+str(i)+", "+str(j))
+                    board[i][j].setVisible(True)
+                    visited.append((i,j))
+                    boardChanged=True
+
+        if(boardChanged):
+            break
+
+    #If no conclusive decision choose random
+    if not boardChanged:
+        i = random.randint(0, len(board)-1)
+        j = random.randint(0, len(board)-1)
+        while((i,j) in visited):
+            i = random.randint(0, len(board)-1)
+            j = random.randint(0, len(board)-1)
+        print("Randomly Select: "+str(i)+", "+str(j))
+        board[i][j].setVisible(True)
+        if board[i][j].getMine():
             bombCount += 1
-    for (x, y) in getNewNeighbors(board, i, j):
-        board[x][y].setVisible(False)
-
-
+        visited.append((i,j))
   printBoard(board)
 
 def main():
     #FOR TESTING
-    board = generateBoard(5, 3)
-    printBoard(board)
-    #basicAgent(5, 3)
+    #board = generateBoard(5, 3)
+    #printBoard(board)
+    basicAgent(5, 3)
 
 if __name__=="__main__":
     main()
