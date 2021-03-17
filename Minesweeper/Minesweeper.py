@@ -13,9 +13,15 @@ import math
 
 class Square:
 
-  def __init__(self, mine=False, proximity=0, visible=None):  
+  def __init__(self, row=0, col=0, mine=False, clue=0, minesAround=0, safeAround=0, hiddenAround=0, visible=None):  
+
+    self.row=row
+    self.col=col
     self.mine = mine
-    self.proximity = proximity
+    self.clue = clue
+    self.minesAround=minesAround
+    self.safeAround=safeAround
+    self.hiddenAround=hiddenAround
     self.visible = visible
 
   def getMine(self):
@@ -48,6 +54,7 @@ class Square:
       return "M"
     return str(self.proximity)
 
+#Creates board
 def generateBoard(d, n):
   board = [[Square() for x in range(d)] for x in range(d)]
   
@@ -65,28 +72,33 @@ def generateBoard(d, n):
 
   return board
 
+#Get info on neigbors
 def checkSurrounding(board, i, j):
-  count = 0
-
+  clue = 0
+  visibleMineCount=0
+  visibleSafeSpace=0
+  neighbors=0
   for x in range(i-1, i+2):
     for y in range(j-1, j+2):
       if (x >= 0 and y >= 0):
         if (x < len(board) and y < len(board)):
-          if (board[x][y].getMine()):
-            count += 1
+            neighbors=neighbors+1
+            if (board[x][y].getMine()):
+                clue += 1
+                if(board[x][y].getVisible==True):
+                    visibleMineCount=visibleMineCount+1
+            elif (board[x][y].getVisible==True):
+                    visibleSafeSpace=visibleSafeSpace+1
+  return (clue,neighbors,visibleMineCount,visibleSafeSpace)
 
-  return count
-
+#Display board
 def printBoard(board):
   for x in range(len(board)):
      for y in range(len(board)):
        print(str(board[x][y]), end=" ")
      print("\n")
 
-#FOR TESTING
-board = generateBoard(5, 3)
-printBoard(board)
-
+#Print hidden neigbors
 def getNewNeighbors(board, i, j):
   ret = []
   
@@ -100,35 +112,39 @@ def getNewNeighbors(board, i, j):
 
   return ret
 
+#Updates each cell with known info
+def updateBoardKnowledge(board,n):
+    dim=len(board)
+    for row in range(0,dim):
+        for col in range(0,dim):
+            clue,neighbors,visibleMineCount,visibleSafeSpace=checkSurrounding(board,row, col)
+            board[row][col].clue=clue
+            board[row][col].minesAround=visibleMineCount
+            board[row][col].safeAround=visibleSafeSpace
+            board[row][col].hiddenAround=neigbors-visibleMineCount-visibleSafeSpace
+
 def basicAgent(d, n):
   board = generateBoard(d, n)
-  knowledge = queue.PriorityQueue()
   bombCount = 0
   while bombCount < n:
     printBoard(board)
-    if (knowledge.empty()):
-      i = random.randint(0, len(board)-1)
-      j = random.randint(0, len(board)-1)
-      print(str(i) + " " + str(j))
-      board[i][j].setVisible(True)
-      for (x, y) in getNewNeighbors(board, i, j):
+    i = random.randint(0, len(board)-1)
+    j = random.randint(0, len(board)-1)
+    print(str(i) + " " + str(j))
+    board[i][j].setVisible(True)
+    if board[i][j].getMine():
+            bombCount += 1
+    for (x, y) in getNewNeighbors(board, i, j):
         board[x][y].setVisible(False)
-        knowledge.put((board[x][y].getProximity(),  (x, y)))
-      if board[i][j].getMine():
-        bombCount += 1
-      #solveNeighbors(board, knowledge)
-      continue
-    else:
-      (prox, (i, j)) = knowledge.get()
-      print(str(i) + " " + str(j))
-      board[i][j].setVisible(True)
-      for (x, y) in getNewNeighbors(board, i, j):
-        board[x][y].setVisible(False)
-        knowledge.put((board[x][y].getProximity(),  (x, y)))
-      if board[i][j].getMine():
-        bombCount += 1
-      #solveNeighbors(board, knowledge)
-      continue
+
+
   printBoard(board)
 
-basicAgent(5, 3)
+def main():
+    #FOR TESTING
+    board = generateBoard(5, 3)
+    printBoard(board)
+    #basicAgent(5, 3)
+
+if __name__=="__main__":
+    main()
