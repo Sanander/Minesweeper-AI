@@ -55,6 +55,18 @@ class Square:
       return "M"
     return str(self.clue)
 
+class Fact:
+    #Spaces=set square indexes
+    def __init__(self, spaces, numberOfMines):
+        self.setOfSpaces=spaces
+        self.numberOfMines=numberOfMines
+
+    def __str__(self):
+        return (str(self.setOfSpaces)+": "+str(self.numberOfMines)+"\n")
+
+    def __repr__(self):
+        return str(self)
+
 #Creates board
 def generateBoard(d, n):
   board = [[Square() for x in range(d)] for x in range(d)]
@@ -139,6 +151,7 @@ def updateBoardKnowledge(board,n):
             board[row][col].safeAround=visibleSafeSpace
             board[row][col].hiddenAround=neighbors-visibleMineCount-visibleSafeSpace
 
+#Basic agent specefied in assignment
 def basicAgent(d, n):
   board = generateBoard(d, n)
   bombCount = 0 
@@ -160,7 +173,7 @@ def basicAgent(d, n):
         safeNeighbors=board[row][col].safeAround
         totalNeighbors=revealedMines+safeNeighbors+hiddenNeighbors
         
-        print("ROW-COL: "+str(row)+", "+str(col)+", "+str(revealedMines))
+        #print("ROW-COL: "+str(row)+", "+str(col)+", "+str(revealedMines))
 
         #Case all neighbors are mines
         if(clue-revealedMines==hiddenNeighbors):
@@ -200,107 +213,168 @@ def basicAgent(d, n):
         visited.append((i,j))
   printBoard(board)
 
+#Updates the knowledge base when a cell is revealed
+def updateBoardKnowledgeAdv(board,row,col,knowledge):
+    newSpace=board[row][col]
+
+    #Modify Knowledge Base If Revealed Space is Safe
+    if not newSpace.mine:
+        #When clue is revealed add neighbors defined by that clue to knowledge base
+        knowledge.append(Fact(set(getNewNeighbors(board,row,col)),newSpace.clue-newSpace.minesAround))
+
+        #Remove newly revealed space from sets in knowledge
+        for item in knowledge:
+            if((row,col) in item.setOfSpaces):
+                if(len(item.setOfSpaces)==1):
+                    knowledge.remove(item)
+                else:
+                    item.setOfSpaces.remove((row,col))
+
+    else:
+        #Remove newly revealed space from sets in knowledge and decrease mine count
+        for item in knowledge:
+            if((row,col) in item.setOfSpaces):
+                item.setOfSpaces.remove((row,col))
+                item.numberOfMines-=1
+            if(len(item.setOfSpaces)==0):
+                knowledge.remove(item)    
+
+    return knowledge
+
+#Remove duplicates and empty sets from list
+def removeDuplicates(knowledge):
+    if len(knowledge)>=0 and knowledge[0].setOfSpaces==set():
+        del knowledge[0]
+
+    for i in range(0,len(knowledge)-1):
+        j=i+1
+        while j<len(knowledge):
+            item1=knowledge[i]
+            item2=knowledge[j]
+            if (item2.setOfSpaces)==set():
+                del knowledge[j]
+                j=j-1
+            if (item1.setOfSpaces.difference(item2.setOfSpaces))==set():
+                del knowledge[j]
+                j=j-1
+            j+=1
+
+    return knowledge
+
+def createNewKnowledge(board, knowledge):
+    #print(knowledge)
+    removeDuplicates(knowledge)
+    #print(knowledge)
+    #print("\n")
+
+    newInfo=[]
+
+    for i in range(0,len(knowledge)-1):
+        for j in range(i+1,len(knowledge)):
+
+            item1=knowledge[i]
+            item2=knowledge[j]
+
+            if (item1.setOfSpaces.issubset(item2.setOfSpaces)):
+                newFact=Fact(item2.setOfSpaces.difference(item1.setOfSpaces),item2.numberOfMines-item1.numberOfMines)
+                if newFact not in knowledge and newFact not in newInfo:
+                    newInfo.append(newFact)
+                    print(str(item1)+" is a subset of "+ str(item2))
+            elif (item2.setOfSpaces.issubset(item1.setOfSpaces)):
+                newFact=Fact(item1.setOfSpaces.difference(item2.setOfSpaces),item1.numberOfMines-item2.numberOfMines)
+                if newFact not in knowledge and newFact not in newInfo:
+                    newInfo.append(newFact)
+                    print(str(item2)+" is a subset of "+ str(item1))
+    knowledge.extend(newInfo)
+
+def improvedSelection():
+    #If no conclusive decision choose lowest probability of mine
+        prob = 1
+        i = random.randint(0, len(board)-1)
+        j = random.randint(0, len(board)-1)
+        isRandom = True
+        
+        #Attempt to find a neighboring space with a low probability of being a mine
+        for (x, y) in visited:
+          if (board[x][y].hiddenAround > 0):
+            if ( (clue - board[x][y].minesAround)/board[x][y].hiddenAround < prob):
+              (i, j) = getNewNeighbors(board, x, y)[0]
+              prob =  (clue - board[x][y].minesAround)/board[x][y].hiddenAround
+              isRandom = False
+
+        while ((i,j) in visited):
+            i = random.randint(0, len(board)-1)
+            j = random.randint(0, len(board)-1)
+
+        if (isRandom):
+          print("Randomly Select: "+str(i)+", "+str(j))
+        else:
+          print("Probability Select: "+str(i)+", "+str(j))
+
+        return (i,j)
+
 def advancedAgent(d, n):
   board = generateBoard(d, n)
-  bombCount = 0 
+  bombCount = 0
+  minesFlagged=0
   visited=[]
+  knowledge=[]
   dim=len(board)
   boardChanged=False
 
   while bombCount < n:
-    boardChanged=False
+    print("BOMB COUNT: "+str(bombCount))
+    print(str(knowledge))
+    print("\n")
     printBoard(board)
+
+    boardChanged=False
+
     updateBoardKnowledge(board,n)
-    #Search revealed squares to see if neighbors can be solved
-    for (row,col) in visited:
-        if (board[row][col].getMine()):
-          continue
-        clue=board[row][col].clue
-        revealedMines=board[row][col].minesAround
-        hiddenNeighbors=board[row][col].hiddenAround
-        safeNeighbors=board[row][col].safeAround
-        totalNeighbors=revealedMines+safeNeighbors+hiddenNeighbors
-        
-        print("ROW-COL: "+str(row)+", "+str(col)+", "+str(revealedMines))
 
-        #Case all neighbors are mines
-        if (clue-revealedMines==hiddenNeighbors):
-            hiddenList=getNewNeighbors(board,row,col)
-            for (i,j) in hiddenList:
-                if((i,j) not in visited):
-                    print("Flag mine on: "+str(i)+", "+str(j))
-                    bombCount+=1
-                    board[i][j].setVisible(True)
-                    visited.append((i,j))
-                    boardChanged=True
-            
-        #Case all neighbors are safe
-        elif (totalNeighbors-clue-safeNeighbors==hiddenNeighbors):
-            hiddenList=getNewNeighbors(board,row,col)
-            for (i,j) in hiddenList:
-                if((i,j) not in visited):
-                    print("Reveal: "+str(i)+", "+str(j))
-                    board[i][j].setVisible(True)
-                    visited.append((i,j))
-                    boardChanged=True
-        
-        #Use inference to solve remaining spaces
-        else:
-          hiddenList=getNewNeighbors(board,row,col)
-          revealedNeighbors = getRevealedNeighbors(board,row,col)
-          for (i,j) in revealedNeighbors:
-            neighborHiddenList = getNewNeighbors(board,i,j)
-            uncommonNeighborsA = []
-            uncommonNeighborsB = []
-            commonNeighbors = []
-            for (x,y) in hiddenList:
-              if ((i,j) not in visited):
-                if ((x,y) not in board[i][j].hiddenAround):
-                  uncommonNeighborsA.append((x,y))
-                else:
-                  commonNeighbors.append((x,y))
-            for (x,y) in neighborHiddenList:
-              if ((i,j) not in visited):
-                if ((x,y) not in hiddenList):
-                  uncommonNeighborsB.append((x,y))
+    newSpaces=[]
 
-            #All uncommon neighbors are mines
-            if (abs(clue - board[i][j].getClue()) == len(uncommonNeighborsA)):
-              if (len(uncommonNeighborsB) == 0 and len(uncommonNeighborsA) > 0):
-                for (x, y) in uncommonNeighborsA:
-                  print("Infer Flag mine on: "+str(x)+", "+str(y))
-                  bombCount+=1
-                  board[x][y].setVisible(True)
-                  visited.append((x,y))
-                  boardChanged=True
-            if (abs(clue - board[i][j].getClue()) == len(uncommonNeighborsB)):
-              if (len(uncommonNeighborsA) == 0 and len(uncommonNeighborsB) > 0):
-                for (x, y) in uncommonNeighborsB:
-                  print("Infer Flag mine on: "+str(x)+", "+str(y))
-                  bombCount+=1
-                  board[x][y].setVisible(True)
-                  visited.append((x,y))
-                  boardChanged=True
+    if len(knowledge)>0:
 
-            #All uncommon neighbors are clear
-            if (abs(clue - board[i][j].getClue()) == 0):
-              if (len(uncommonNeighborsB) == 0 and len(uncommonNeighborsA) > 0):
-                for (x, y) in uncommonNeighborsA:
-                  print("Infer Reveal: "+str(i)+", "+str(j))
-                  board[x][y].setVisible(True)
-                  visited.append((x,y))
-                  boardChanged=True
-            if (abs(clue - board[i][j].getClue()) == 0):
-              if (len(uncommonNeighborsA) == 0 and len(uncommonNeighborsB) > 0):
-                for (x, y) in uncommonNeighborsB:
-                  print("Infer Reveal: "+str(i)+", "+str(j))
-                  board[x][y].setVisible(True)
-                  visited.append((x,y))
-                  boardChanged=True
-        #Select by lowest probability of mine
-        if (boardChanged):
-            break
+        createNewKnowledge(board,knowledge)
+        newSpaces=[]
 
+        for item in knowledge:
+
+            removeItem=False
+
+            setOfSpaces=item.setOfSpaces
+            numberOfMines=item.numberOfMines
+
+            #If set length in knowledge equals number of mines, all mines
+            if len(setOfSpaces)==numberOfMines:
+                removeItem=True
+                for (i,j) in setOfSpaces:
+                        if((i,j) not in visited):
+                            print("Flag mine on: "+str(i)+", "+str(j))
+                            minesFlagged+=1
+                            bombCount+=1
+                            board[i][j].setVisible(True)
+                            visited.append((i,j))
+                            boardChanged=True
+                            newSpaces.append((i,j))
+
+            #If knowledge mine count=0, all safe
+            elif numberOfMines==0:
+                removeItem=True
+                for (i,j) in setOfSpaces:
+                        if((i,j) not in visited):
+                            print("Revealed: "+str(i)+", "+str(j))
+                            board[i][j].setVisible(True)
+                            visited.append((i,j))
+                            boardChanged=True
+                            newSpaces.append((i,j))
+            if removeItem:
+                knowledge.remove(item)
+
+        for (i,j) in newSpaces:
+            updateBoardKnowledgeAdv(board,i,j,knowledge)
+                
     #If no conclusive decision choose random
     if not boardChanged:
         i = random.randint(0, len(board)-1)
@@ -313,14 +387,18 @@ def advancedAgent(d, n):
         if board[i][j].getMine():
             bombCount += 1
         visited.append((i,j))
+        updateBoardKnowledgeAdv(board,i,j,knowledge)
+    
+
   printBoard(board)
+  print("MINES FLAGGED: "+str(minesFlagged))
 
 def main():
     #FOR TESTING
     #board = generateBoard(5, 3)
     #printBoard(board)
     #basicAgent(9, 5)
-    advancedAgent(9, 25)
+    advancedAgent(9, 5)
 
 if __name__=="__main__":
     main()

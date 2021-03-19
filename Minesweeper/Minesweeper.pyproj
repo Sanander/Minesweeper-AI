@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>247fe339-c0ad-4cce-874d-ff6e72140e67</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Minesweeper.py</StartupFile>
+    <StartupFile>minesweeperv2.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,6 +22,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Minesweeper.py" />
+    <Compile Include="minesweeperv2.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
