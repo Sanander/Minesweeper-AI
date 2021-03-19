@@ -13,6 +13,7 @@ import queue
 import math
 import copy
 
+#Data structure representing each square on the grid and its associated information
 class Square:
 
   def __init__(self, row=0, col=0, mine=False, clue=0, minesAround=0, safeAround=0, hiddenAround=0, visible=None):  
@@ -56,6 +57,7 @@ class Square:
       return "M"
     return str(self.clue)
 
+#Data structure to store a piece of info in knowledge base
 class Fact:
     #Spaces=set square indexes
     def __init__(self, spaces, numberOfMines):
@@ -265,6 +267,7 @@ def removeDuplicates(knowledge):
 
     return knowledge
 
+#Updates the information about each square and its neighbors
 def createNewKnowledge(board, knowledge):
     #print(knowledge)
     removeDuplicates(knowledge)
@@ -291,7 +294,8 @@ def createNewKnowledge(board, knowledge):
                     #print(str(item2)+" is a subset of "+ str(item1))
     knowledge.extend(newInfo)
 
-def improvedSelection(board,visited):
+#Probability based selection if no definitive squares can be revealed
+def improvedSelection(board,visited,n):
     #If no conclusive decision choose lowest probability of mine
         prob = 1
         i = random.randint(0, len(board)-1)
@@ -306,17 +310,26 @@ def improvedSelection(board,visited):
               prob =  (board[x][y].clue - board[x][y].minesAround)/board[x][y].hiddenAround
               isRandom = False
 
-        while ((i,j) in visited):
-            i = random.randint(0, len(board)-1)
-            j = random.randint(0, len(board)-1)
+        #If a random space is less likely to be a mine then choose the random space
+        if(n/(len(board)**2-len(visited))<prob):
+            isRandom=True
+            while ((i,j) in visited):
+                i = random.randint(0, len(board)-1)
+                j = random.randint(0, len(board)-1)
 
-        if (isRandom):
-          print("Randomly Select: "+str(i)+", "+str(j))
-        else:
-          print("Probability Select: "+str(i)+", "+str(j))
+        #Chooses random space if there are no revealed spaces
+        while ((i,j) in visited):
+                i = random.randint(0, len(board)-1)
+                j = random.randint(0, len(board)-1)
+
+        #if (isRandom):
+        #  print("Randomly Select: "+str(i)+", "+str(j))
+        #else:
+        #  print("Probability Select: "+str(i)+", "+str(j))
 
         return (i,j)
 
+#Advanced agent with knowledge base and improved selection method
 def advancedAgent(board, n):
   bombCount = 0
   minesFlagged=0
@@ -385,7 +398,7 @@ def advancedAgent(board, n):
         #while((i,j) in visited):
         #    i = random.randint(0, len(board)-1)
         #    j = random.randint(0, len(board)-1)
-        (i,j)=improvedSelection(board,visited)
+        (i,j)=improvedSelection(board,visited,n)
         #print("Randomly Select: "+str(i)+", "+str(j))
         board[i][j].setVisible(True)
         if board[i][j].getMine():
@@ -401,12 +414,12 @@ def advancedAgent(board, n):
 def main():
     #FOR TESTING
     dim=20
-    n=20
+    n=60
     board = generateBoard(dim, n)
     board2=copy.deepcopy(board)
-    x1=(basicAgent(board,n))
+    #x1=(basicAgent(board,n))
     x2=advancedAgent(board2, n)
-    print(x1)
+    #print(x1)
     print(x2)
 
 if __name__=="__main__":
