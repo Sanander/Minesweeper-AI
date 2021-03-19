@@ -11,6 +11,7 @@ Original file is located at
 import random
 import queue
 import math
+import copy
 
 class Square:
 
@@ -152,9 +153,9 @@ def updateBoardKnowledge(board,n):
             board[row][col].hiddenAround=neighbors-visibleMineCount-visibleSafeSpace
 
 #Basic agent specefied in assignment
-def basicAgent(d, n):
-  board = generateBoard(d, n)
-  bombCount = 0 
+def basicAgent(board, n):
+  bombCount = 0
+  minesFlagged=0
   visited=[]
   dim=len(board)
   boardChanged=False
@@ -180,7 +181,8 @@ def basicAgent(d, n):
             hiddenList=getNewNeighbors(board,row,col)
             for (i,j) in hiddenList:
                 if((i,j) not in visited):
-                    print("Flag mine on: "+str(i)+", "+str(j))
+                    #print("Flag mine on: "+str(i)+", "+str(j))
+                    minesFlagged+=1
                     bombCount+=1
                     board[i][j].setVisible(True)
                     visited.append((i,j))
@@ -191,7 +193,7 @@ def basicAgent(d, n):
             hiddenList=getNewNeighbors(board,row,col)
             for (i,j) in hiddenList:
                 if ((i,j) not in visited):
-                    print("Reveal: "+str(i)+", "+str(j))
+                    #print("Reveal: "+str(i)+", "+str(j))
                     board[i][j].setVisible(True)
                     visited.append((i,j))
                     boardChanged=True
@@ -206,12 +208,14 @@ def basicAgent(d, n):
         while((i,j) in visited):
             i = random.randint(0, len(board)-1)
             j = random.randint(0, len(board)-1)
-        print("Randomly Select: "+str(i)+", "+str(j))
+        #print("Randomly Select: "+str(i)+", "+str(j))
         board[i][j].setVisible(True)
         if board[i][j].getMine():
             bombCount += 1
         visited.append((i,j))
+  #print("MINES FLAGGED BASIC: "+str(minesFlagged))
   printBoard(board)
+  return minesFlagged
 
 #Updates the knowledge base when a cell is revealed
 def updateBoardKnowledgeAdv(board,row,col,knowledge):
@@ -279,15 +283,15 @@ def createNewKnowledge(board, knowledge):
                 newFact=Fact(item2.setOfSpaces.difference(item1.setOfSpaces),item2.numberOfMines-item1.numberOfMines)
                 if newFact not in knowledge and newFact not in newInfo:
                     newInfo.append(newFact)
-                    print(str(item1)+" is a subset of "+ str(item2))
+                    #print(str(item1)+" is a subset of "+ str(item2))
             elif (item2.setOfSpaces.issubset(item1.setOfSpaces)):
                 newFact=Fact(item1.setOfSpaces.difference(item2.setOfSpaces),item1.numberOfMines-item2.numberOfMines)
                 if newFact not in knowledge and newFact not in newInfo:
                     newInfo.append(newFact)
-                    print(str(item2)+" is a subset of "+ str(item1))
+                    #print(str(item2)+" is a subset of "+ str(item1))
     knowledge.extend(newInfo)
 
-def improvedSelection():
+def improvedSelection(board,visited):
     #If no conclusive decision choose lowest probability of mine
         prob = 1
         i = random.randint(0, len(board)-1)
@@ -297,9 +301,9 @@ def improvedSelection():
         #Attempt to find a neighboring space with a low probability of being a mine
         for (x, y) in visited:
           if (board[x][y].hiddenAround > 0):
-            if ( (clue - board[x][y].minesAround)/board[x][y].hiddenAround < prob):
+            if ( (board[x][y].clue - board[x][y].minesAround)/board[x][y].hiddenAround < prob):
               (i, j) = getNewNeighbors(board, x, y)[0]
-              prob =  (clue - board[x][y].minesAround)/board[x][y].hiddenAround
+              prob =  (board[x][y].clue - board[x][y].minesAround)/board[x][y].hiddenAround
               isRandom = False
 
         while ((i,j) in visited):
@@ -313,8 +317,7 @@ def improvedSelection():
 
         return (i,j)
 
-def advancedAgent(d, n):
-  board = generateBoard(d, n)
+def advancedAgent(board, n):
   bombCount = 0
   minesFlagged=0
   visited=[]
@@ -323,9 +326,9 @@ def advancedAgent(d, n):
   boardChanged=False
 
   while bombCount < n:
-    print("BOMB COUNT: "+str(bombCount))
-    print(str(knowledge))
-    print("\n")
+    #print("BOMB COUNT: "+str(bombCount))
+    #print(str(knowledge))
+    #print("\n")
     printBoard(board)
 
     boardChanged=False
@@ -351,7 +354,7 @@ def advancedAgent(d, n):
                 removeItem=True
                 for (i,j) in setOfSpaces:
                         if((i,j) not in visited):
-                            print("Flag mine on: "+str(i)+", "+str(j))
+                            #print("Flag mine on: "+str(i)+", "+str(j))
                             minesFlagged+=1
                             bombCount+=1
                             board[i][j].setVisible(True)
@@ -364,7 +367,7 @@ def advancedAgent(d, n):
                 removeItem=True
                 for (i,j) in setOfSpaces:
                         if((i,j) not in visited):
-                            print("Revealed: "+str(i)+", "+str(j))
+                            #print("Revealed: "+str(i)+", "+str(j))
                             board[i][j].setVisible(True)
                             visited.append((i,j))
                             boardChanged=True
@@ -377,12 +380,13 @@ def advancedAgent(d, n):
                 
     #If no conclusive decision choose random
     if not boardChanged:
-        i = random.randint(0, len(board)-1)
-        j = random.randint(0, len(board)-1)
-        while((i,j) in visited):
-            i = random.randint(0, len(board)-1)
-            j = random.randint(0, len(board)-1)
-        print("Randomly Select: "+str(i)+", "+str(j))
+        #i = random.randint(0, len(board)-1)
+        #j = random.randint(0, len(board)-1)
+        #while((i,j) in visited):
+        #    i = random.randint(0, len(board)-1)
+        #    j = random.randint(0, len(board)-1)
+        (i,j)=improvedSelection(board,visited)
+        #print("Randomly Select: "+str(i)+", "+str(j))
         board[i][j].setVisible(True)
         if board[i][j].getMine():
             bombCount += 1
@@ -391,14 +395,19 @@ def advancedAgent(d, n):
     
 
   printBoard(board)
-  print("MINES FLAGGED: "+str(minesFlagged))
+  #print("MINES FLAGGED: "+str(minesFlagged))
+  return minesFlagged
 
 def main():
     #FOR TESTING
-    #board = generateBoard(5, 3)
-    #printBoard(board)
-    #basicAgent(9, 5)
-    advancedAgent(9, 5)
+    dim=20
+    n=20
+    board = generateBoard(dim, n)
+    board2=copy.deepcopy(board)
+    x1=(basicAgent(board,n))
+    x2=advancedAgent(board2, n)
+    print(x1)
+    print(x2)
 
 if __name__=="__main__":
     main()
