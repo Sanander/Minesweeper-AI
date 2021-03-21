@@ -147,7 +147,7 @@ def getRevealedNeighbors(board, i, j):
   return ret
 
 #Updates each cell with known info
-def updateBoardKnowledge(board,n):
+def updateBoardKnowledge(board,n=0):
     dim = len(board)
     for row in range(0,dim):
         for col in range(0,dim):
@@ -158,14 +158,14 @@ def updateBoardKnowledge(board,n):
             board[row][col].hiddenAround = neighbors - visibleMineCount - visibleSafeSpace
 
 #Basic agent specefied in assignment
-def basicAgent(board, n):
+def basicAgent(board, n=0):
   bombCount = 0
   minesFlagged = 0
   visited = []
   dim = len(board)
   boardChanged = False
 
-  while bombCount < n:
+  while(len(visited)<len(board)**2):
     boardChanged = False
     #printBoard(board)
     updateBoardKnowledge(board,n)
@@ -274,10 +274,7 @@ def removeDuplicates(knowledge):
 
 #Updates the information about each square and its neighbors
 def createNewKnowledge(board, knowledge):
-    #print(knowledge)
     removeDuplicates(knowledge)
-    #print(knowledge)
-    #print("\n")
 
     newInfo = []
 
@@ -341,7 +338,7 @@ def improvedSelection(board,visited,n,mineCount):
         return (i,j)
 
 #Advanced agent with knowledge base and improved selection method
-def advancedAgent(board, n):
+def advancedAgent(board, n=0,globalToggle=False):
   bombCount = 0
   minesFlagged = 0
   visited = []
@@ -349,10 +346,19 @@ def advancedAgent(board, n):
   dim = len(board)
   boardChanged = False
 
-  while bombCount < n:
-    #print("BOMB COUNT: "+str(bombCount))
+  if globalToggle:
+      updateBoardKnowledge(board,n)
+      globalSet=set()
+      for row in range(0,len(board)):
+          for col in range(0,len(board)):
+              globalSet.add((row,col))
+      knowledge.append(Fact(globalSet,n))
+
+
+  while (len(visited)<len(board)**2):
     #print("\n")
     #print("_____________________________________________________________")
+    #print("State at beginning of turn")
     #print(str(knowledge))
     #printBoard(board)
 
@@ -361,6 +367,7 @@ def advancedAgent(board, n):
 
     newSpaces = []
 
+    #print("Decision Made:")
     if len(knowledge) > 0:
 
         createNewKnowledge(board,knowledge)
@@ -384,7 +391,7 @@ def advancedAgent(board, n):
                             board[i][j].setVisible(True)
                             visited.append((i,j))
                             boardChanged = True
-                            updateBoardKnowledge(board,n)
+                            updateBoardKnowledge(board)
                             updateBoardKnowledgeAdv(board,i,j,knowledge)
                             if not board[i][j].mine:
                                 raise Exception("Mine Misflagged")
@@ -399,7 +406,7 @@ def advancedAgent(board, n):
                             board[i][j].setVisible(True)
                             visited.append((i,j))
                             boardChanged = True
-                            updateBoardKnowledge(board,n)
+                            updateBoardKnowledge(board)
                             updateBoardKnowledgeAdv(board,i,j,knowledge)
                             break
 
@@ -407,16 +414,20 @@ def advancedAgent(board, n):
                 break
                 
                 
-    #If no conclusive decision choose random
+#If no conclusive decision choose random
+
+    #IMPROVED SEARCH
     #if not boardChanged:
     #    (i,j) = improvedSelection(board,visited,n,bombCount)
-    #    print("Randomly Select: "+str(i)+", "+str(j))
+    #    #print("Randomly Select: "+str(i)+", "+str(j))
     #    board[i][j].setVisible(True)
     #    if board[i][j].getMine():
     #        bombCount += 1
     #    visited.append((i,j))
     #    updateBoardKnowledge(board,n)
     #    updateBoardKnowledgeAdv(board,i,j,knowledge)
+
+    #RANDOM SEARCH
     if not boardChanged:
         i = random.randint(0, len(board) - 1)
         j = random.randint(0, len(board) - 1)
@@ -428,7 +439,7 @@ def advancedAgent(board, n):
         if board[i][j].getMine():
             bombCount += 1
         visited.append((i,j))
-        updateBoardKnowledge(board,n)
+        updateBoardKnowledge(board)
         updateBoardKnowledgeAdv(board,i,j,knowledge)
     
   #printBoard(board)
@@ -436,24 +447,32 @@ def advancedAgent(board, n):
   return minesFlagged
 
 def main():
-    #FOR TESTING
-    #dim = 10
-    #n = 20
+    ##FOR TESTING
+    #dim = 5
+    #n = 3
     #x2 = 0
     
     #board = generateBoard(dim, n)
-    #board2=copy.deepcopy(board)
-    #x1=(basicAgent(board2,n))
-    #x2 = advancedAgent(board, n)
-    #print(x1)
+    ##board2=copy.deepcopy(board)
+    ##x1=(basicAgent(board2,n))
+    #x2 = advancedAgent(board, n, True)
+    ##print(x1)
     #print(x2)
 
-    #Performance Graphs
-    dim=10
+#Advanced Agent Play-by-Play
+    #dim = 5
+    #n = 5
+    #x2 = 0
+    
+    #board = generateBoard(dim, n)
+    #x2 = basicAgent(board)
+    #print("Mines Flagged: "+str(x2)+" out of "+str(n))
+
+#Performance Graphs
+    dim=5
     dataPoints=4
-    numberOfTrials=10
-    nVals=[10,25,45,60]
-    #nVals=numpy.linspace(10,60,dataPoints)
+    numberOfTrials=5
+    nVals=[5,10,15,20]
    
     scoreBasic=[0]*dataPoints
     scoreAdv=[0]*dataPoints
@@ -465,7 +484,7 @@ def main():
             board = generateBoard(dim, nVals[i])
             board2=copy.deepcopy(board)
             scoreBasic[i]+=basicAgent(board,nVals[i])
-            scoreAdv[i]+=advancedAgent(board2,nVals[i])
+            scoreAdv[i]+=advancedAgent(board2,nVals[i],False)
         scoreBasic[i]=scoreBasic[i]/(nVals[i]*numberOfTrials)
         scoreAdv[i]=scoreAdv[i]/(nVals[i]*numberOfTrials)
   
